@@ -60,7 +60,7 @@ int C = 100; //penalty
 double tolerance = 0.001;
 double eps = 1e-3; // convergence condition
 int two_sigma_squared = 100; //RBF(Radial-Basis Function)核函数中的参数。sigma==(10/2)^1/2。
-
+int use_linear_kernel = 1;
 std::vector<double> W;
 std::vector<double> error_cache;//存放non-bound样本误差
 
@@ -75,7 +75,34 @@ double dot_product(int i1, int i2);
 double dot_product(vector<double>& vec_1, double*vec_2);
 double kernel(int i1, int i2, int is_linear = 1);
 double learned_func(int k, int is_linear = 1);
+void PrintModel();
+void SVM_Test();
 
+void SVM_Test()
+{
+	double ee = 0.0;
+	printf("DS sz = %ld\n", DS.size() );
+	for (int i = train_cnt; i < train_cnt + test_cnt; i++)
+	{
+		if ((DS[i]->y) * learned_func(i, use_linear_kernel) < 0)
+		{
+			ee += 1.0;
+		}
+		printf("%d:%lf\n", DS[i]->y, learned_func(i, use_linear_kernel)  );
+	}
+	printf("ee=%lf ratio=%lf\n", ee, ee / test_cnt );
+}
+void PrintModel()
+{
+	for (int i = 0; i < train_cnt; i++)
+	{
+		if (alphas[i] > 0.0)
+		{
+			printf("[%d]:%lf\n", i, alphas[i]);
+		}
+	}
+	printf("b=%lf\n", b );
+}
 double dot_product(int i1, int i2)
 {
 	double res = 0.0;
@@ -421,9 +448,13 @@ void ReadData()
 		{
 			printf("test_cnt = %d\n", test_cnt );
 		}
-		TestDS.push_back(sp);
+		DS.push_back(sp);
 		test_cnt++;
 	}
+	random_shuffle(DS.begin(), DS.end());
+	int total_cnt = train_cnt + test_cnt;
+	//train_cnt = total_cnt / 2;
+	//test_cnt = total_cnt - train_cnt;
 	printf("Load Finished train=%d  test=%d\n", train_cnt, test_cnt );
 
 
@@ -473,7 +504,7 @@ void SMO()
 		{
 			for (int k = 0; k < train_cnt; k++)
 			{
-				num_changed += examine_example(k);
+				num_changed += examine_example(k, use_linear_kernel);
 			}
 		}
 		else
@@ -482,7 +513,7 @@ void SMO()
 			{
 				if (alphas[k] != 0 && alphas[k] != C)
 				{
-					num_changed += examine_example(k);
+					num_changed += examine_example(k, use_linear_kernel);
 				}
 			}
 		}
@@ -505,16 +536,22 @@ void SMO()
 				alphas[i] = 0.0;
 			}
 		}
+		printf("examine_all=%d  num_changed=%d\n", examine_all, num_changed );
+		//PrintModel();
+		//getchar();
 	}
 
 }
 
 int main(int argc, const char * argv[])
 {
+	use_linear_kernel = 1;
 	printf("Hello World\n");
 	ReadData();
 	printf("Data Loaded\n");
 	InitPara();
-	printf("InitPara Finished\n");
+	printf("InitPara Finished train_cnt=%d\n", train_cnt);
 	SMO();
+	PrintModel();
+	SVM_Test();
 }
