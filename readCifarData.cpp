@@ -37,22 +37,22 @@ int main(int argc, const char * argv[])
 	char g_val[1024];
 	char b_val[1024];
 
-	//ofstream outputS(OutPutSet, ios::trunc);
-	ofstream outputS(OutPutTest, ios::trunc);
+	ofstream outputS(OutPutSet, ios::trunc);
+	//ofstream outputS(OutPutTest, ios::trunc);
 	char fn[100];
 	int cnt = 0;
 	int tmp = 0;
-	//for (int j = 1; j <= 5; j++)
+	for (int j = 1; j <= 5; j++)
 	{
-		//sprintf(fn, "%s%d.bin", DataSet, j);
-		//ifstream inputS(fn, ios::in | ios::binary );
-		ifstream inputS(TestSet, ios::in | ios::binary );
+		sprintf(fn, "%s%d.bin", DataSet, j);
+		ifstream inputS(fn, ios::in | ios::binary );
+		//ifstream inputS(TestSet, ios::in | ios::binary );
 		while (inputS.peek() != EOF)
 		{
 			inputS.read(&label, 1);
 
 			//outputS << label + 0 << "\t";
-			outputS << unsigned(label) << "\t";
+			//outputS << unsigned(label) << "\t";
 			for (int i = 0; i < 1024; i++)
 			{
 				inputS.read(&(r_val[i]), 1);
@@ -88,6 +88,14 @@ int main(int argc, const char * argv[])
 				outputS << tmp << "\t";
 				//outputS << b_val[i] + 0 << "\t";
 				//outputS << unsigned(b_val[i]) << "\t";
+			}
+			if (label < 5)
+			{
+				outputS << 1;
+			}
+			else
+			{
+				outputS << -1;
 			}
 			outputS << endl;
 			cnt++;

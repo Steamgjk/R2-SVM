@@ -32,9 +32,13 @@
 
 using namespace std;
 #define DataSet "Iris.data"
-#define TrainData "train_data"
-#define TestData "test_data"
-#define DIM 4
+//#define TrainData "train_data"
+//#define TestData "test_data"
+//#define DIM 4
+
+#define TrainData "cifar-10-batches-bin/cifar_output"
+#define TestData "cifar-10-batches-bin/cifar_test"
+#define DIM 3072
 
 struct SamplePoint
 {
@@ -419,7 +423,7 @@ void ReadData()
 			ifs >> (sp->xptr[i]);
 		}
 		ifs >> (sp->y);
-		if (train_cnt % 10 == 0)
+		if (train_cnt % 100 == 0)
 		{
 			printf("train_cnt = %d\n", train_cnt );
 		}
@@ -444,14 +448,14 @@ void ReadData()
 			ifs_test >> (sp->xptr[i]);
 		}
 		ifs_test >> (sp->y);
-		if (test_cnt % 10 == 0)
+		if (test_cnt % 100 == 0)
 		{
 			printf("test_cnt = %d\n", test_cnt );
 		}
 		DS.push_back(sp);
 		test_cnt++;
 	}
-	random_shuffle(DS.begin(), DS.end());
+	//random_shuffle(DS.begin(), DS.end());
 	int total_cnt = train_cnt + test_cnt;
 	//train_cnt = total_cnt / 2;
 	//test_cnt = total_cnt - train_cnt;
@@ -549,6 +553,7 @@ int main(int argc, const char * argv[])
 	printf("Hello World\n");
 	ReadData();
 	printf("Data Loaded\n");
+	return;
 	InitPara();
 	printf("InitPara Finished train_cnt=%d\n", train_cnt);
 	SMO();
