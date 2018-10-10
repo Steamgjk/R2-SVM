@@ -92,7 +92,7 @@ int main(int argc, char **argv)
 	//read_problem wil be changed
 	read_problem(input_file_name);
 	error_msg = svm_check_parameter(&prob, &param);
-
+	param.max_iter = 20;
 	if (error_msg)
 	{
 		fprintf(stderr, "ERROR: %s\n", error_msg);
@@ -107,6 +107,18 @@ int main(int argc, char **argv)
 	{
 		printf("Begin.. training\n");
 		model = svm_train(&prob, &param);
+
+		printf("Print Model Paras\n");
+		printf("Class=%d totalSV=%d\n", model->nr_class, model->l );
+		printf("-b=%lf\n", *(model->rho) );
+		//binary class
+		printf("\n");
+		printf("SVs\n");
+		for (int i = 0; i < model->l; i++)
+		{
+			printf("%d:%lf\n", model->sv_indices[i], model->sv_coef[0][i] );
+		}
+		exit(0);
 
 		// get the model parameters
 
@@ -186,6 +198,7 @@ void parse_command_line(int argc, char **argv, char *input_file_name, char *mode
 	param.nr_weight = 0;
 	param.weight_label = NULL;
 	param.weight = NULL;
+	param.max_iter = -1;
 	cross_validation = 0;
 
 	// parse options
@@ -412,11 +425,11 @@ void r2_read_problem(char*buf, struct svm_problem& myprob)
 		myprob.x[i] = Malloc(struct svm_node, dim_num);
 		for (j = 0; j < dim_num; j++)
 		{
-			myprob.x[i].index = feature_ptr[j].index;
-			myprob.x[i].value = feature_ptr[j].value;
-			if (max_index < myprob.x[i].index)
+			myprob.x[i][j].index = feature_ptr[j].index;
+			myprob.x[i][j].value = feature_ptr[j].value;
+			if (max_index < myprob.x[i][j].index)
 			{
-				max_index = myprob.x[i].index;
+				max_index = myprob.x[i][j].index;
 			}
 		}
 	}
