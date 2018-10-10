@@ -82,12 +82,14 @@ static char* readline(FILE *input)
 
 int main(int argc, char **argv)
 {
-	printf("okkkk\n");
+	printf("okkkk correlation=%d\n", cross_validation);
 	char input_file_name[1024];
 	char model_file_name[1024];
 	const char *error_msg;
 
 	parse_command_line(argc, argv, input_file_name, model_file_name);
+	//read_problem(input_file_name);
+	//read_problem wil be changed
 	read_problem(input_file_name);
 	error_msg = svm_check_parameter(&prob, &param);
 
@@ -105,6 +107,9 @@ int main(int argc, char **argv)
 	{
 		printf("Begin.. training\n");
 		model = svm_train(&prob, &param);
+
+		// get the model parameters
+
 		if (svm_save_model(model_file_name, model))
 		{
 			fprintf(stderr, "can't save model to file %s\n", model_file_name);
@@ -276,7 +281,6 @@ void parse_command_line(int argc, char **argv, char *input_file_name, char *mode
 }
 
 // read in a problem (in svmlight format)
-
 void read_problem(const char *filename)
 {
 	int max_index, inst_max_index, i;
@@ -379,4 +383,45 @@ void read_problem(const char *filename)
 		}
 
 	fclose(fp);
+}
+
+//buf=|sample_num(int)|dim_num(int)|label ... label(double)|features...(svm_node)
+void r2_read_problem(char*buf, struct svm_problem& myprob)
+{
+	int* int_ptr = static_cast<int*>(static_cast<void*>(buf));
+	int sample_num = (*int_ptr);
+	int dim_num = (*(int_ptr + 1));
+	double* double_ptr = static_cast<double*>(static_cast<void*>((int_ptr + 2)));
+
+	myprob.l = sample_num;
+	myprob.y = Malloc(double, myprob.l);
+	myprob.x = Malloc(struct svm_node *, myprob.l);
+
+	int i = 0;
+	for (i = 0; i < sample_num; i++)
+	{
+		myprob.y[i] = double_ptr[i];
+	}
+
+	struct svm_node* feature_ptr = static_cast<struct svm_node*>(static_cast<void*>((double_ptr + sample_num)));
+
+	int j = 0;
+	int max_index = 0;
+	for (i = 0 ; i < sample_num; i++)
+	{
+		myprob.x[i] = Malloc(struct svm_node, dim_num);
+		for (j = 0; j < dim_num; j++)
+		{
+			myprob.x[i].index = feature_ptr[j].index;
+			myprob.x[i].value = feature_ptr[j].value;
+			if (max_index < myprob.x[i].index)
+			{
+				max_index = myprob.x[i].index;
+			}
+		}
+	}
+
+	if (param.gamma == 0 && max_index > 0)
+		param.gamma = 1.0 / max_index;
+
 }

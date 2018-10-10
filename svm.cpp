@@ -564,6 +564,8 @@ void Solver::Solve(int l, const QMatrix& Q, const double *p_, const schar *y_,
 	int iter = 0;
 	int max_iter = max(10000000, l > INT_MAX / 100 ? INT_MAX : 100 * l);
 	int counter = min(l, 1000) + 1;
+	printf("max_iter=%d\n", max_iter);
+	max_iter = 200;
 
 	while (iter < max_iter)
 	{
@@ -1451,6 +1453,7 @@ static void solve_c_svc(
 
 	int i;
 
+	//Will be replaced based on the parameters
 	for (i = 0; i < l; i++)
 	{
 		alpha[i] = 0;
@@ -1645,7 +1648,7 @@ static void solve_nu_svr(
 struct decision_function
 {
 	double *alpha;
-	double rho;
+	double rho; //rho = -b
 };
 
 static decision_function svm_train_one(
@@ -1657,6 +1660,7 @@ static decision_function svm_train_one(
 	switch (param->svm_type)
 	{
 	case C_SVC:
+		//will use this function
 		solve_c_svc(prob, param, alpha, &si, Cp, Cn);
 		break;
 	case NU_SVC:
@@ -2144,6 +2148,7 @@ svm_model *svm_train(const svm_problem *prob, const svm_parameter *param)
 	}
 	else
 	{
+		//Will use this part
 		// classification
 		int l = prob->l;
 		int nr_class;
