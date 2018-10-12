@@ -1,9 +1,9 @@
 CXX ?= g++
-CFLAGS = -Wall -Wconversion -O3 -fPIC
+CFLAGS = -Wall -Wconversion -fPIC
 SHVER = 2
 OS = $(shell uname)
 
-all: svm-train svm-predict svm-scale
+all: svm-train svm-predict svm-scale my-svm-train
 
 lib: svm.o
 	if [ "$(OS)" = "Darwin" ]; then \
@@ -24,4 +24,4 @@ svm-scale: svm-scale.c
 svm.o: svm.cpp svm.h
 	$(CXX) $(CFLAGS) -c svm.cpp
 clean:
-	rm -f *~ svm.o svm-train svm-predict svm-scale libsvm.so.$(SHVER)
+	rm -f *~ svm.o my-svm-train svm-train svm-predict svm-scale libsvm.so.$(SHVER)

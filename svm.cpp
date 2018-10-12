@@ -409,7 +409,7 @@ public:
 
 	void Solve(int l, const QMatrix& Q, const double *p_, const schar *y_,
 	           double *alpha_, double Cp, double Cn, double eps,
-	           SolutionInfo* si, int shrinking);
+	           SolutionInfo* si, int shrinking, int max_iter = -1);
 protected:
 	int active_size;
 	schar *y;
@@ -507,8 +507,9 @@ void Solver::reconstruct_gradient()
 
 void Solver::Solve(int l, const QMatrix& Q, const double *p_, const schar *y_,
                    double *alpha_, double Cp, double Cn, double eps,
-                   SolutionInfo* si, int shrinking)
+                   SolutionInfo* si, int shrinking, int max_iter)
 {
+	printf("Solver... l =%d\n", l );
 	this->l = l;
 	this->Q = &Q;
 	QD = Q.get_QD();
@@ -562,10 +563,13 @@ void Solver::Solve(int l, const QMatrix& Q, const double *p_, const schar *y_,
 	// optimization step
 
 	int iter = 0;
-	int max_iter = max(10000000, l > INT_MAX / 100 ? INT_MAX : 100 * l);
+	if (max_iter < 0)
+	{
+		max_iter = max(10000000, l > INT_MAX / 100 ? INT_MAX : 100 * l);
+	}
+
 	int counter = min(l, 1000) + 1;
 	printf("max_iter=%d\n", max_iter);
-	max_iter = 200;
 
 	while (iter < max_iter)
 	{
@@ -1275,6 +1279,7 @@ public:
 	SVC_Q(const svm_problem& prob, const svm_parameter& param, const schar *y_)
 		: Kernel(prob.l, prob.x, param)
 	{
+		printf("SVC_Q Construct\n");
 		clone(y, y_, prob.l);
 		cache = new Cache(prob.l, (long int)(param.cache_size * (1 << 20)));
 		QD = new double[prob.l];
@@ -1447,6 +1452,7 @@ static void solve_c_svc(
     const svm_problem *prob, const svm_parameter* param,
     double *alpha, Solver::SolutionInfo* si, double Cp, double Cn)
 {
+	printf("solve_c_svc\n");
 	int l = prob->l;
 	double *minus_ones = new double[l];
 	schar *y = new schar[l];
@@ -1461,9 +1467,11 @@ static void solve_c_svc(
 		if (prob->y[i] > 0) y[i] = +1; else y[i] = -1;
 	}
 
+	printf("Call Solver... l =%d\n", l);
 	Solver s;
+	printf("check...\n");
 	s.Solve(l, SVC_Q(*prob, *param, y), minus_ones, y,
-	        alpha, Cp, Cn, param->eps, si, param->shrinking);
+	        alpha, Cp, Cn, param->eps, si, param->shrinking, param->max_iter);
 
 	double sum_alpha = 0;
 	for (i = 0; i < l; i++)
@@ -2222,7 +2230,7 @@ svm_model *svm_train(const svm_problem *prob, const svm_parameter *param)
 
 				if (param->probability)
 					svm_binary_svc_probability(&sub_prob, param, weighted_C[i], weighted_C[j], probA[p], probB[p]);
-
+				printf("svm_train_one\n");
 				f[p] = svm_train_one(&sub_prob, param, weighted_C[i], weighted_C[j]);
 				for (k = 0; k < ci; k++)
 					if (!nonzero[si + k] && fabs(f[p].alpha[k]) > 0)

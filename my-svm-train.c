@@ -2,8 +2,10 @@
 #include <stdlib.h>
 #include <string.h>
 #include <ctype.h>
+#include <fstream>
 #include <errno.h>
 #include "svm.h"
+using namespace std;
 #define Malloc(type,n) (type *)malloc((n)*sizeof(type))
 
 void print_null(const char *s) {}
@@ -51,6 +53,7 @@ void exit_input_error(int line_num)
 void parse_command_line(int argc, char **argv, char *input_file_name, char *model_file_name);
 void read_problem(const char *filename);
 void do_cross_validation();
+void r2_read_problem(char*buf, struct svm_problem& myprob);
 
 struct svm_parameter param;		// set by parse_command_line
 struct svm_problem prob;		// set by read_problem
@@ -90,7 +93,57 @@ int main(int argc, char **argv)
 	parse_command_line(argc, argv, input_file_name, model_file_name);
 	//read_problem(input_file_name);
 	//read_problem wil be changed
-	read_problem(input_file_name);
+	//read_problem(input_file_name);
+
+	//buf=|sample_num(int)|dim_num(int)|label ... label(double)|features...(svm_node)
+	int sample_num = 50000;
+	int dim_num = 3072;
+	size_t feature_num = (size_t)sample_num * dim_num;
+	size_t buf_size = sizeof(int) + sizeof(int) + sample_num * sizeof(double) + feature_num * sizeof(struct svm_node);
+	char* buf = Malloc(char, buf_size);
+	ifstream inputS(input_file_name);
+	if (!inputS.is_open())
+	{
+		printf("fail to open %s\n", input_file_name);
+	}
+	int* int_ptr = static_cast<int*>(static_cast<void*>(buf));
+	int_ptr[0] = sample_num;
+	int_ptr[1] = dim_num;
+	double* double_ptr = static_cast<double*>(static_cast<void*>(int_ptr + 2));
+	struct svm_node* svm_node_ptr = static_cast<struct svm_node*>(static_cast<void*>(double_ptr + sample_num));
+
+
+	double ele; char ch; int key_pos; size_t base;
+	int i, j;
+	for (i = 0; i < sample_num; i++)
+	{
+		if (i % 100 == 0)
+		{
+			printf("i=%d\n", i );
+		}
+		inputS >> ele;
+		double_ptr[i] = ele;
+		base = (size_t)i * dim_num;
+		for (j = 0; j < dim_num; j++)
+		{
+			inputS >> key_pos >> ch >> ele;
+			svm_node_ptr[base + j].index = key_pos;
+			svm_node_ptr[base + j].value = ele;
+		}
+	}
+
+	printf("fini i=%d\n", i);
+	printf("base=%ld svm_node_ptr[49999].index=%d value=%lf\n", base, svm_node_ptr[base + dim_num - 1].index, svm_node_ptr[base + dim_num - 1].value);
+
+	r2_read_problem(buf, prob);
+
+	free(buf);
+
+	printf("FIN\n");
+	printf("prob.l=%d \n", prob.l );
+
+
+
 	error_msg = svm_check_parameter(&prob, &param);
 	param.max_iter = 20;
 	if (error_msg)
@@ -332,7 +385,8 @@ void read_problem(const char *filename)
 
 	prob.y = Malloc(double, prob.l);
 	prob.x = Malloc(struct svm_node *, prob.l);
-	x_space = Malloc(struct svm_node, elements);
+	x_space = Malloc(struct svm_node, elements); // elements = dim_num
+	printf("elements(dim_num)=%ld\n", elements );
 
 	max_index = 0;
 	j = 0;
@@ -376,7 +430,7 @@ void read_problem(const char *filename)
 			max_index = inst_max_index;
 		x_space[j++].index = -1;
 	}
-
+	printf("j= %ld\n", j);
 	if (param.gamma == 0 && max_index > 0)
 		param.gamma = 1.0 / max_index;
 
@@ -402,11 +456,12 @@ void read_problem(const char *filename)
 void r2_read_problem(char*buf, struct svm_problem& myprob)
 {
 	int* int_ptr = static_cast<int*>(static_cast<void*>(buf));
-	int sample_num = (*int_ptr);
-	int dim_num = (*(int_ptr + 1));
+	int sample_num = int_ptr[0];
+	int dim_num = int_ptr[1];
 	double* double_ptr = static_cast<double*>(static_cast<void*>((int_ptr + 2)));
 
 	myprob.l = sample_num;
+
 	myprob.y = Malloc(double, myprob.l);
 	myprob.x = Malloc(struct svm_node *, myprob.l);
 
@@ -420,19 +475,23 @@ void r2_read_problem(char*buf, struct svm_problem& myprob)
 
 	int j = 0;
 	int max_index = 0;
+	int idx = 0;
 	for (i = 0 ; i < sample_num; i++)
 	{
-		myprob.x[i] = Malloc(struct svm_node, dim_num);
+		myprob.x[i] = Malloc(struct svm_node, dim_num + 1);
 		for (j = 0; j < dim_num; j++)
 		{
-			myprob.x[i][j].index = feature_ptr[j].index;
-			myprob.x[i][j].value = feature_ptr[j].value;
+			idx = i * dim_num + j;
+			myprob.x[i][j].index = feature_ptr[idx].index;
+			myprob.x[i][j].value = feature_ptr[idx].value;
 			if (max_index < myprob.x[i][j].index)
 			{
 				max_index = myprob.x[i][j].index;
 			}
 		}
+		myprob.x[i][j].index = -1;
 	}
+
 
 	if (param.gamma == 0 && max_index > 0)
 		param.gamma = 1.0 / max_index;
