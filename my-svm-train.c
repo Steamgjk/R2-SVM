@@ -54,6 +54,7 @@ void parse_command_line(int argc, char **argv, char *input_file_name, char *mode
 void read_problem(const char *filename);
 void do_cross_validation();
 void r2_read_problem(char*buf, struct svm_problem& myprob);
+void print_model(svm_model* model);
 
 struct svm_parameter param;		// set by parse_command_line
 struct svm_problem prob;		// set by read_problem
@@ -138,6 +139,7 @@ int main(int argc, char **argv)
 	r2_read_problem(buf, prob);
 
 	free(buf);
+	prob.curSV_num = 0;
 
 	printf("FIN\n");
 	printf("prob.l=%d \n", prob.l );
@@ -145,7 +147,7 @@ int main(int argc, char **argv)
 
 
 	error_msg = svm_check_parameter(&prob, &param);
-	param.max_iter = 20;
+	param.max_iter = 10;
 	if (error_msg)
 	{
 		fprintf(stderr, "ERROR: %s\n", error_msg);
@@ -161,16 +163,28 @@ int main(int argc, char **argv)
 		printf("Begin.. training\n");
 		model = svm_train(&prob, &param);
 
-		printf("Print Model Paras\n");
-		printf("Class=%d totalSV=%d\n", model->nr_class, model->l );
-		printf("-b=%lf\n", *(model->rho) );
-		//binary class
-		printf("\n");
-		printf("SVs\n");
-		for (int i = 0; i < model->l; i++)
+		print_model(model);
+
+
+		if (prob.curSV_num > 0)
 		{
-			printf("%d:%lf\n", model->sv_indices[i], model->sv_coef[0][i] );
+			free(prob.ini_alphas);
+			free(prob.ini_indices);
 		}
+		prob.curSV_num = model->l;
+		prob.ini_alphas = Malloc(double, model->l);
+		prob.ini_indices = Malloc(int, model->l);
+
+		for (int i = 0; i < prob.curSV_num; i++)
+		{
+			prob.ini_alphas[i] = model->sv_coef[0][i] ;
+			prob.ini_indices[i] = model->sv_indices[i];
+		}
+		printf("prob.curSV_num=%d\n", prob.curSV_num );
+
+		svm_train(&prob, &param);
+		print_model(model);
+
 		exit(0);
 
 		// get the model parameters
@@ -190,7 +204,21 @@ int main(int argc, char **argv)
 
 	return 0;
 }
-
+void print_model(svm_model* model)
+{
+	printf("Print Model Paras\n");
+	printf("Class=%d totalSV=%d\n", model->nr_class, model->l );
+	printf("-b=%lf\n", *(model->rho) );
+	//binary class
+	printf("\n");
+	printf("SVs l= %d\n", model->l);
+	/*
+	for (int i = 0; i < model->l; i++)
+	{
+		printf("%d:%lf\n", model->sv_indices[i], model->sv_coef[0][i] );
+	}
+	**/
+}
 void do_cross_validation()
 {
 	int i;

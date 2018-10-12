@@ -20,6 +20,9 @@ struct svm_problem
 	int l;
 	double *y;
 	struct svm_node **x;
+	double* ini_alphas;
+	int* ini_indices;
+	int curSV_num;
 };
 
 enum { C_SVC, NU_SVC, ONE_CLASS, EPSILON_SVR, NU_SVR };	/* svm_type */

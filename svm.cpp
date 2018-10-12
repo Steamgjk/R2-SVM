@@ -574,7 +574,11 @@ void Solver::Solve(int l, const QMatrix& Q, const double *p_, const schar *y_,
 	while (iter < max_iter)
 	{
 		// show progress and do shrinking
-		printf("iter=%d\n", iter );
+		if (iter % 100 == 0)
+		{
+			printf("iter=%d\n", iter );
+		}
+
 		if (--counter == 0)
 		{
 			counter = min(l, 1000);
@@ -1452,7 +1456,7 @@ static void solve_c_svc(
     const svm_problem *prob, const svm_parameter* param,
     double *alpha, Solver::SolutionInfo* si, double Cp, double Cn)
 {
-	printf("solve_c_svc\n");
+	printf("solve_c_svc.. prob->curSV_num=%d\n", prob->curSV_num);
 	int l = prob->l;
 	double *minus_ones = new double[l];
 	schar *y = new schar[l];
@@ -1460,11 +1464,30 @@ static void solve_c_svc(
 	int i;
 
 	//Will be replaced based on the parameters
+
+
 	for (i = 0; i < l; i++)
 	{
 		alpha[i] = 0;
 		minus_ones[i] = -1;
 		if (prob->y[i] > 0) y[i] = +1; else y[i] = -1;
+	}
+
+	if (prob->curSV_num > 0)
+	{
+		// use the conveyed alphas
+		for (i = 0; i < prob->curSV_num; i++)
+		{
+			int index = prob->ini_indices[i];
+			double value = prob->ini_alphas[i];
+			alpha[index] = value;
+
+		}
+		printf("used\n");
+	}
+	else
+	{
+		printf("not used\n");
 	}
 
 	printf("Call Solver... l =%d\n", l);
@@ -2107,6 +2130,7 @@ static void svm_group_classes(const svm_problem *prob, int *nr_class_ret, int **
 //
 svm_model *svm_train(const svm_problem *prob, const svm_parameter *param)
 {
+	printf("svm_train prob->curSV_num=%d\n", prob->curSV_num );
 	svm_model *model = Malloc(svm_model, 1);
 	model->param = *param;
 	model->free_sv = 0;	// XXX
@@ -2115,6 +2139,7 @@ svm_model *svm_train(const svm_problem *prob, const svm_parameter *param)
 	        param->svm_type == EPSILON_SVR ||
 	        param->svm_type == NU_SVR)
 	{
+		printf("part I\n");
 		// regression or one-class-svm
 		model->nr_class = 2;
 		model->label = NULL;
@@ -2156,6 +2181,7 @@ svm_model *svm_train(const svm_problem *prob, const svm_parameter *param)
 	}
 	else
 	{
+		printf("part II\n");
 		//Will use this part
 		// classification
 		int l = prob->l;
@@ -2164,7 +2190,7 @@ svm_model *svm_train(const svm_problem *prob, const svm_parameter *param)
 		int *start = NULL;
 		int *count = NULL;
 		int *perm = Malloc(int, l);
-
+		printf("svm_train2  prob->curSV_num=%d\n", prob->curSV_num );
 		// group training data of the same class
 		svm_group_classes(prob, &nr_class, &label, &start, &count, perm);
 		if (nr_class == 1)
@@ -2227,7 +2253,11 @@ svm_model *svm_train(const svm_problem *prob, const svm_parameter *param)
 					sub_prob.x[ci + k] = x[sj + k];
 					sub_prob.y[ci + k] = -1;
 				}
-
+				//add
+				sub_prob.ini_alphas = prob->ini_alphas;
+				sub_prob.ini_indices = prob->ini_indices;
+				sub_prob.curSV_num = prob->curSV_num;
+				//
 				if (param->probability)
 					svm_binary_svc_probability(&sub_prob, param, weighted_C[i], weighted_C[j], probA[p], probB[p]);
 				printf("svm_train_one\n");
