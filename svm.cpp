@@ -521,13 +521,14 @@ void Solver::Solve(int l, const QMatrix& Q, const double *p_, const schar *y_,
 	this->eps = eps;
 	unshrink = false;
 
+	printf("check1\n");
 	// initialize alpha_status
 	{
 		alpha_status = new char[l];
 		for (int i = 0; i < l; i++)
 			update_alpha_status(i);
 	}
-
+	printf("check2\n");
 	// initialize active set (for shrinking)
 	{
 		active_set = new int[l];
@@ -535,7 +536,7 @@ void Solver::Solve(int l, const QMatrix& Q, const double *p_, const schar *y_,
 			active_set[i] = i;
 		active_size = l;
 	}
-
+	printf("check3\n");
 	// initialize gradient
 	{
 		G = new double[l];
@@ -586,6 +587,7 @@ void Solver::Solve(int l, const QMatrix& Q, const double *p_, const schar *y_,
 			info(".");
 		}
 
+		// The selection of i and j should be changed, the range should be defined for different epoch
 		int i, j;
 		if (select_working_set(i, j) != 0)
 		{
@@ -599,7 +601,7 @@ void Solver::Solve(int l, const QMatrix& Q, const double *p_, const schar *y_,
 			else
 				counter = 1;	// do shrinking next iteration
 		}
-
+		//printf("iter=%d i=%d j=%d\n", iter, i, j );
 		++iter;
 
 		// update alpha[i] and alpha[j], handle bounds carefully
@@ -984,7 +986,7 @@ double Solver::calculate_rho()
 	double ub = INF, lb = -INF, sum_free = 0;
 	for (int i = 0; i < active_size; i++)
 	{
-		double yG = y[i] * G[i];
+		double yG = y[i] * G[i ];
 
 		if (is_upper_bound(i))
 		{
@@ -1456,7 +1458,7 @@ static void solve_c_svc(
     const svm_problem *prob, const svm_parameter* param,
     double *alpha, Solver::SolutionInfo* si, double Cp, double Cn)
 {
-	printf("solve_c_svc.. prob->curSV_num=%d\n", prob->curSV_num);
+	printf("solve_c_svc.. prob->curSV_num=%d  prob->l=%d\n", prob->curSV_num, prob->l);
 	int l = prob->l;
 	double *minus_ones = new double[l];
 	schar *y = new schar[l];
@@ -2053,6 +2055,7 @@ static double svm_svr_probability(
 static void svm_group_classes(const svm_problem *prob, int *nr_class_ret, int **label_ret, int **start_ret, int **count_ret, int *perm)
 {
 	int l = prob->l;
+	printf("group class l = %d\n", l );
 	int max_nr_class = 16;
 	int nr_class = 0;
 	int *label = Malloc(int, max_nr_class);
@@ -2086,6 +2089,7 @@ static void svm_group_classes(const svm_problem *prob, int *nr_class_ret, int **
 			++nr_class;
 		}
 	}
+	printf("check .. \n");
 
 	//
 	// Labels are ordered by their first occurrence in the training set.

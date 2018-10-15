@@ -1,5 +1,5 @@
 CXX ?= g++
-CFLAGS = -Wall -Wconversion -fPIC
+CFLAGS = -Wall -std=c++11 -Wconversion -fPIC
 SHVER = 2
 OS = $(shell uname)
 
@@ -14,13 +14,13 @@ lib: svm.o
 	$(CXX) $${SHARED_LIB_FLAG} svm.o -o libsvm.so.$(SHVER)
 
 svm-predict: svm-predict.c svm.o
-	$(CXX) $(CFLAGS) svm-predict.c svm.o -o svm-predict -lm
+	$(CXX) $(CFLAGS) svm-predict.c svm.o -o svm-predict -lm -lpthread
 svm-train: svm-train.c svm.o
-	$(CXX) $(CFLAGS) svm-train.c svm.o -o svm-train -lm
+	$(CXX) $(CFLAGS) svm-train.c svm.o -o svm-train -lm -lpthread
 my-svm-train: my-svm-train.c svm.o
-	$(CXX) $(CFLAGS) my-svm-train.c svm.o -o my-svm-train -lm
+	$(CXX) $(CFLAGS) my-svm-train.c svm.o -o my-svm-train -lm -lpthread
 svm-scale: svm-scale.c
-	$(CXX) $(CFLAGS) svm-scale.c -o svm-scale
+	$(CXX) $(CFLAGS) svm-scale.c -o svm-scale -lpthread
 svm.o: svm.cpp svm.h
 	$(CXX) $(CFLAGS) -c svm.cpp
 clean:

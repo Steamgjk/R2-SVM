@@ -4,6 +4,7 @@
 #include <ctype.h>
 #include <fstream>
 #include <errno.h>
+#include <thread>
 #include "svm.h"
 using namespace std;
 #define Malloc(type,n) (type *)malloc((n)*sizeof(type))
@@ -54,7 +55,9 @@ void parse_command_line(int argc, char **argv, char *input_file_name, char *mode
 void read_problem(const char *filename);
 void do_cross_validation();
 void r2_read_problem(char*buf, struct svm_problem& myprob);
+void r2_read_problems(char*buf, struct svm_problem* myprobs, int prob_num);
 void print_model(svm_model* model);
+void sub_svm_train(int tid);
 
 struct svm_parameter param;		// set by parse_command_line
 struct svm_problem prob;		// set by read_problem
@@ -62,6 +65,9 @@ struct svm_model *model;
 struct svm_node *x_space;
 int cross_validation;
 int nr_fold;
+
+struct svm_problem* probs;
+int prob_num = 4;
 
 static char *line = NULL;
 static int max_line_len;
@@ -118,7 +124,7 @@ int main(int argc, char **argv)
 	int i, j;
 	for (i = 0; i < sample_num; i++)
 	{
-		if (i % 100 == 0)
+		if (i % 1000 == 0)
 		{
 			printf("i=%d\n", i );
 		}
@@ -133,76 +139,108 @@ int main(int argc, char **argv)
 		}
 	}
 
-	printf("fini i=%d\n", i);
 	printf("base=%ld svm_node_ptr[49999].index=%d value=%lf\n", base, svm_node_ptr[base + dim_num - 1].index, svm_node_ptr[base + dim_num - 1].value);
 
-	r2_read_problem(buf, prob);
+	/*
+		r2_read_problem(buf, prob);
+		free(buf);
+		prob.curSV_num = 0;
+		printf("prob.l=%d \n", prob.l );
+		error_msg = svm_check_parameter(&prob, &param);
+		param.max_iter = 50;
+		if (error_msg)
+		{
+			fprintf(stderr, "ERROR: %s\n", error_msg);
+			exit(1);
+		}
 
-	free(buf);
-	prob.curSV_num = 0;
+		if (cross_validation)
+		{
+			do_cross_validation();
+		}
+		else
+		{
+			printf("Begin.. training\n");
+			model = svm_train(&prob, &param);
+			print_model(model);
 
-	printf("FIN\n");
-	printf("prob.l=%d \n", prob.l );
+			char model_fn[200];
+			int cnt = 0;
+			for (cnt = 0; cnt < 100; cnt++)
+			{
+				prob.curSV_num = model->l;
+				printf("cnt = %d model->l=%d prob.l=%d", cnt, model->l, prob.l);
+				if (prob.curSV_num > 0)
+				{
+					free(prob.ini_alphas);
+					free(prob.ini_indices);
+					prob.ini_alphas = Malloc(double, prob.curSV_num);
+					prob.ini_indices = Malloc(int, prob.curSV_num);
+					for (int i = 0; i < prob.curSV_num; i++)
+					{
+						prob.ini_alphas[i] = model->sv_coef[0][i] ;
+						prob.ini_indices[i] = model->sv_indices[i];
+					}
+					printf("prob.curSV_num=%d\n", prob.curSV_num );
+				}
+				model = svm_train(&prob, &param);
+				print_model(model);
 
+				sprintf(model_fn, "%s-%d", model_file_name, cnt);
+				// get the model parameters
+				printf("Saving... %s\n", model_fn );
+				if (svm_save_model(model_fn, model))
+				{
+					fprintf(stderr, "can't save model to file %s\n", model_fn);
+					exit(1);
+				}
 
+			}
+			svm_free_and_destroy_model(&model);
+
+		}
+		svm_destroy_param(&param);
+		free(prob.y);
+		free(prob.x);
+		free(x_space);
+		free(line);
+	**/
 
 	error_msg = svm_check_parameter(&prob, &param);
-	param.max_iter = 10;
+	param.max_iter = -1;
 	if (error_msg)
 	{
 		fprintf(stderr, "ERROR: %s\n", error_msg);
 		exit(1);
 	}
-
-	if (cross_validation)
+	probs = Malloc(svm_problem, (prob_num + 1) );
+	r2_read_problems(buf, probs, prob_num);
+	int tid = 0;
+	for (tid = 0; tid < prob_num; tid++)
 	{
-		do_cross_validation();
+		thread th(sub_svm_train, tid);
+		th.detach();
 	}
-	else
+
+	// main thread
+	while (1 == 1)
 	{
-		printf("Begin.. training\n");
-		model = svm_train(&prob, &param);
-
-		print_model(model);
-
-
-		if (prob.curSV_num > 0)
-		{
-			free(prob.ini_alphas);
-			free(prob.ini_indices);
-		}
-		prob.curSV_num = model->l;
-		prob.ini_alphas = Malloc(double, model->l);
-		prob.ini_indices = Malloc(int, model->l);
-
-		for (int i = 0; i < prob.curSV_num; i++)
-		{
-			prob.ini_alphas[i] = model->sv_coef[0][i] ;
-			prob.ini_indices[i] = model->sv_indices[i];
-		}
-		printf("prob.curSV_num=%d\n", prob.curSV_num );
-
-		svm_train(&prob, &param);
-		print_model(model);
-
-		exit(0);
-
-		// get the model parameters
-
-		if (svm_save_model(model_file_name, model))
-		{
-			fprintf(stderr, "can't save model to file %s\n", model_file_name);
-			exit(1);
-		}
-		svm_free_and_destroy_model(&model);
+		this_thread::sleep_for(chrono::seconds(5));
 	}
-	svm_destroy_param(&param);
-	free(prob.y);
-	free(prob.x);
-	free(x_space);
-	free(line);
+
 
 	return 0;
+}
+void sub_svm_train(int tid)
+{
+	printf("this is thread %d\n", tid);
+
+	int sub_idx  = tid + 1;
+	struct svm_problem* sub_prob = &(probs[sub_idx]);
+	sub_prob->curSV_num = 0;
+	svm_model* mymodel = svm_train(sub_prob, &param);
+	print_model(mymodel);
+
 }
 void print_model(svm_model* model)
 {
@@ -518,6 +556,69 @@ void r2_read_problem(char*buf, struct svm_problem& myprob)
 			}
 		}
 		myprob.x[i][j].index = -1;
+	}
+
+
+	if (param.gamma == 0 && max_index > 0)
+		param.gamma = 1.0 / max_index;
+
+}
+
+//master prob + sub_problems
+void r2_read_problems(char*buf, struct svm_problem* myprobs, int prob_num)
+{
+	int* int_ptr = static_cast<int*>(static_cast<void*>(buf));
+	int sample_num = int_ptr[0];
+	int dim_num = int_ptr[1];
+	int unit_sample_num = sample_num / prob_num;
+	int offset = 0;
+
+	double* double_ptr = static_cast<double*>(static_cast<void*>((int_ptr + 2)));
+
+	svm_problem* master_problem = &(myprobs[0]);
+	master_problem->l = sample_num;
+	master_problem->y = Malloc(double, master_problem->l);
+	master_problem->x = Malloc(struct svm_node *, master_problem->l);
+
+	int i = 0;
+	for (i = 0; i < sample_num; i++)
+	{
+		master_problem->y[i] = double_ptr[i];
+	}
+
+	struct svm_node* feature_ptr = static_cast<struct svm_node*>(static_cast<void*>((double_ptr + sample_num)));
+
+	int j = 0;
+	int max_index = 0;
+	int idx = 0;
+	for (i = 0 ; i < sample_num; i++)
+	{
+		master_problem->x[i] = Malloc(struct svm_node, dim_num + 1);
+		for (j = 0; j < dim_num; j++)
+		{
+			idx = i * dim_num + j;
+			master_problem->x[i][j].index = feature_ptr[idx].index;
+			master_problem->x[i][j].value = feature_ptr[idx].value;
+			if (max_index < master_problem->x[i][j].index)
+			{
+				max_index = master_problem->x[i][j].index;
+			}
+		}
+		master_problem->x[i][j].index = -1;
+	}
+
+	for (i = 1; i <= prob_num; i++)
+	{
+		svm_problem* slave_problem = &(myprobs[i]);
+		slave_problem->l = unit_sample_num;
+		if (i == prob_num)
+		{
+			slave_problem->l = sample_num - (prob_num - 1) * unit_sample_num;
+		}
+		slave_problem->y = (master_problem->y + offset);
+		slave_problem->x = (master_problem->x + offset);
+		offset += unit_sample_num;
+		//printf("[%d] y0=%lf",i,  );
 	}
 
 
